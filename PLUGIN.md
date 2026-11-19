@@ -1,13 +1,12 @@
 ---
 id: dictation
 name: Dictation
-version: 1.0.1
+version: 1.1.0
 author: Michael Hejazi
 api: 0
 kind: [extension]
 icon: assets/icon.svg
 places: [composer.tool, settings.section]
-contributes: {"settings.secret":[{"name":"GEMINI_API_KEY","label":"Gemini API key","check":"builtin:gemini"}]}
 keys:
   - provider: google
     why: Transcribes and tidies what you record
@@ -15,12 +14,14 @@ overrides: []
 touches:
   network:
     - host: generativelanguage.googleapis.com
-      why: Sends recorded microphone audio through the app server for transcription and cleanup
+      why: Sends recorded microphone audio from its own server for transcription and cleanup
     - host: browser-managed
       why: Live mode uses the browser vendor's recognition service; its endpoint is chosen by the browser
   record: read
   memory: none
-  server: false
+  server: true
+server:
+  run: node server/main.js
 ---
 
 Dictate into the composer, expanded editor or Files editor. Reads agent/thread

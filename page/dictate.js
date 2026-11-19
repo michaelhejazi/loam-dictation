@@ -1,7 +1,7 @@
 // Dictation that is recorded whole and cleaned up once — everything about it
 // that is arithmetic rather than a microphone, so a test can hold it.
 //
-// The page records a take, sends it to this app's `/api/transcribe`, and puts
+// The page records a take, sends it to this plugin's server (`/x/dictation/transcribe`), and puts
 // the words that come back into the field at the caret. What lives here: how long a take may run and when it warns, how
 // each moment of it feels and keeping the screen on while it runs, what the
 // clock says, which container the recorder is asked for, what the level meter

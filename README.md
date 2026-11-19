@@ -23,15 +23,15 @@ every take. Edit the note in Obsidian or in Files.
 ## What you need
 
 A Google (Gemini) API key for Record first, saved once in Settings ›
-Connections › API keys (or a key of Dictation's own in its settings). As you
+Connections › API keys (or one for Dictation alone, with "use a different key" on the same page). As you
 speak needs no key, only a browser that offers speech recognition.
 
 ## What it touches
 
 - **Your microphone**, only while you are recording. Turning the plugin off
   releases it.
-- **generativelanguage.googleapis.com**: a recorded take goes there through
-  your Loam's server, which holds the key. The browser never sees the key.
+- **generativelanguage.googleapis.com**: a recorded take goes there from
+  this plugin's own server on your Loam, which holds the key. The browser never sees the key.
 - **Your browser's recognition service**, in As you speak only.
 - **Conversation records, read only**: your agents' and threads' names, to
   bias what it hears. It never sends a message for you.
@@ -48,18 +48,20 @@ In your Loam, open Settings › Market, find Dictation, and press **Install**.
 Or install it from Settings › Plugins with its link:
 
 ```
-https://github.com/michaelhejazi/loam-dictation/tree/v1.0.1
+https://github.com/michaelhejazi/loam-dictation/tree/v1.1.0
 ```
 
 ## For builders
 
-[PLUGIN.md](PLUGIN.md) is its manifest. It is page code only, plain ES
-modules with no build step: `page/main.js` registers the composer's tools and
-the settings section through Loam's plugin interface (API 0), and
-`page/engine.js` is the recorder and its states. The transcription itself is
-your Loam server's `/api/transcribe`, which has the key; this plugin holds
-none. Loam's own repository runs this plugin's tests against its copy in
-`plugins/_listed/dictation/`.
+[PLUGIN.md](PLUGIN.md) is its manifest. Plain ES modules with no build step
+and no dependency: `page/main.js` registers the composer's tools and the
+settings section through Loam's plugin interface (API 0), and
+`page/engine.js` is the recorder and its states. `server/` is its own small
+server (Node's standard library), which Loam runs while the plugin is on and
+reaches at `/x/dictation/`: `POST transcribe` takes a take and answers the
+words, and `GET terms` reads your vault's terms note. It holds the key; the
+page holds none. Needs Loam 0.2.3 or later. Loam's own repository runs this
+plugin's tests against its copy in `plugins/_listed/dictation/`.
 
 ## Made by
 

@@ -1,3 +1,6 @@
+
+// This plugin's own server, through Loam's plugin gateway (server/app.js).
+const SERVER = '/x/dictation/'
 // Mounted once. Cross-module state and operations are explicit host services.
 export function mount(host, { segmentedControl }) {
 const { screenKeeper, feel, playTone, recordMaxMs, recorderType, RECORD_BITS_PER_SECOND, recordPhase, pushLevel, levelOf, dictationVocabulary, vaultTerms, mergeAt, LEVEL_BARS, clock, RECORD_MINUTES_MIN, RECORD_MINUTES_MAX, readField, caretPoint, setMarkdown, fetch, h, icon, longAgo } = host
@@ -17,7 +20,7 @@ const { screenKeeper, feel, playTone, recordMaxMs, recorderType, RECORD_BITS_PER
 // footprint of the field it stands in for (`takeSurface()` below):
 //
 //   recording  the clock, the microphone's loudness, ✕ and ✓
-//   cleaning   the take is at `/api/transcribe`; a slow shimmer and one ✕
+//   cleaning   the take is at the plugin's server; a slow shimmer and one ✕
 //   (landed)   there is no third state to draw — the words are in the field at
 //              the caret, and the take is gone
 //
@@ -175,7 +178,7 @@ function stopLive() {
 // ------------------------------------------- dictation, recorded whole
 
 // The mic's other way of working, and the one it uses by default: the whole
-// take is recorded, sent to this app's `/api/transcribe` when it stops, and the
+// take is recorded, sent to this plugin's server (`/x/dictation/transcribe`) when it stops, and the
 // words come back cleaned — the ums and false starts gone, what was said kept.
 //
 // **Which of the two the mic is, is decided here and only here.** It is the
@@ -405,7 +408,7 @@ function vocabularyNow(extra = []) {
 
 
 
-// The take to `/api/transcribe`, and what comes back: the words land, or the
+// The take to this plugin's server (`/x/dictation/transcribe`), and what comes back: the words land, or the
 // field is given back as it was and the quiet line says why. A take cancelled
 // while it was away is aborted, and whatever answers late is not this take's.
 //
@@ -427,7 +430,7 @@ async function transcribeTake() {
     form.append('audio', take.audio, 'take')
     form.append('terms', JSON.stringify(vocabularyNow(take.noteTerms)))
     form.append('polish', host.state.dictation.polish)
-    const res = await fetch('/api/transcribe', { method: 'POST', body: form, signal: abort?.signal })
+    const res = await fetch(`${SERVER}transcribe`, { method: 'POST', body: form, signal: abort?.signal })
     const body = await res.json().catch(() => null)
     if (res.ok) {
       words = String(body?.text ?? '').trim()
@@ -478,17 +481,20 @@ const NO_TERMS_NOTE = 'No terms note yet'
 
 // The person's names and terms live in one note in the vault, which the
 // Obsidian plugin reads too, so a take here and a take there are biased
-// towards the same list. This app cannot see the vault; the host reads the
-// note fresh each time and sends its terms (`vaultTerms()`). Before 2026-09-30
+// towards the same list. The page cannot see the vault; the plugin's own
+// server reads the note fresh each time (`/x/dictation/terms`) and the page
+// takes its terms (`vaultTerms()`). Before 2026-09-30
 // each device kept a list of its own in Settings, and the lists drifted.
 //
-// A `404` is a host without the route yet, or no note, and a `405` is a host
-// older still: all three are no vault terms, and none is a fault. Anything
+// A `404` is no note, and a `405` something older still: both are no vault
+// terms, and neither is a fault. Anything
 // else keeps the last good answer, says so on the Dictation page, and a take
 // goes ahead with what there is.
 async function loadTermsNote() {
   try {
-    const out = await host.api('GET', '/dictation-terms')
+    const res = await fetch(`${SERVER}terms`, { headers: { accept: 'application/json' } })
+    const out = await res.json().catch(() => null)
+    if (!res.ok) throw Object.assign(new Error(out?.error || `The vault’s terms could not be read (${res.status}).`), { status: res.status })
     host.state.termsNote = {
       loaded: true,
       found: true,
