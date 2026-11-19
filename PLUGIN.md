@@ -1,11 +1,11 @@
 ---
 id: dictation
 name: Dictation
-version: 1.0.0
-author: Loam contributors
+version: 1.0.1
+author: Michael Hejazi
 api: 0
-default_on: false
 kind: [extension]
+icon: assets/icon.svg
 places: [composer.tool, settings.section]
 contributes: {"settings.secret":[{"name":"GEMINI_API_KEY","label":"Gemini API key","check":"builtin:gemini"}]}
 keys:
