@@ -77,7 +77,7 @@ the plugin off and on again. The terms note is read fresh for every take.
 In Settings › Plugins, with its link:
 
 ```
-https://github.com/michaelhejazi/loam-dictation/tree/v1.1.2
+https://github.com/michaelhejazi/loam-dictation/tree/v1.1.3
 ```
 
 ### For builders
