@@ -23,15 +23,17 @@ every take. Edit the note in Obsidian or in Files.
 ## What you need
 
 A Google (Gemini) API key for Record first, saved once in Settings ›
-Connections › API keys (or one for Dictation alone, with "use a different key" on the same page). As you
-speak needs no key, only a browser that offers speech recognition.
+Connections › API keys (or one for Dictation alone, with "use a different
+key" on the same page). As you speak needs no key, only a browser that
+offers speech recognition.
 
 ## What it touches
 
 - **Your microphone**, only while you are recording. Turning the plugin off
   releases it.
 - **generativelanguage.googleapis.com**: a recorded take goes there from
-  this plugin's own server on your Loam, which holds the key. The browser never sees the key.
+  this plugin's own server on your Loam, which holds the key. The browser
+  never sees the key.
 - **Your browser's recognition service**, in As you speak only.
 - **Conversation records, read only**: your agents' and threads' names, to
   bias what it hears. It never sends a message for you.
@@ -39,8 +41,9 @@ speak needs no key, only a browser that offers speech recognition.
 ## Settings
 
 Settings › Plugins › Dictation: the mode, the polish, the longest recording
-(1 to 15 minutes, 5 unless you change it), and which microphone. They are kept in this browser, so each
-device has its own, and they stay if you turn the plugin off and on again.
+(1 to 15 minutes, 5 unless you change it), and which microphone. They are
+kept in this browser, so each device has its own, and they stay if you turn
+the plugin off and on again.
 
 ## Getting it
 
@@ -48,7 +51,7 @@ In your Loam, open Settings › Market, find Dictation, and press **Install**.
 Or install it from Settings › Plugins with its link:
 
 ```
-https://github.com/michaelhejazi/loam-dictation/tree/v1.1.0
+https://github.com/michaelhejazi/loam-dictation/tree/v1.1.1
 ```
 
 ## For builders
