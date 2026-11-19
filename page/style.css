@@ -1,0 +1,105 @@
+/* ------------------------------------------------------------- the take
+ *
+ * Dictation happens in the field. The owner, 2026-09-29: "the input box should
+ * become the audio UI. It should just have a check mark or an X to discard."
+ * Row one keeps its footprint: the field is hidden under the take (not emptied
+ * — `app.js` puts it back on ✕), and the take is one row in its place: the
+ * clock, the microphone's loudness across the middle, and two 32px round
+ * controls at the right edge. There is no second box and no card.
+ *
+ * The ink is the design's primary, `--latte-espresso`, at reduced strength for the bars;
+ * the clock is the muted 13px; the last half-minute turns both to the one
+ * warning amber this page already has (`--warning`, the quota ring's). */
+.draft-row.taking .draft { display: none; }
+.take {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 36px; padding: 2px 2px 2px 10px; min-width: 0; flex: 1;
+  color: var(--paper-ink);
+}
+.take-clock {
+  flex: none; font-size: 13px; line-height: 1; color: var(--paper-ink-3);
+  font-variant-numeric: tabular-nums; min-width: 30px;
+  transition: color .3s;
+}
+.take.cleaning .take-clock { min-width: 0; }
+/* The loudness, `loamWave`'s bars made live: each one a tenth of a second,
+ * its height the level, centred on the field's middle line so it reads as a
+ * waveform. The row runs right to left with the newest bar first, so the
+ * newest are the ones that stay when a phone is too narrow for them all, and
+ * `space-between` spreads them across a desktop's width. A silent take is a row
+ * of 3px bars, never an empty field. */
+.take-bars {
+  flex: 1; min-width: 0; height: 30px; overflow: hidden; position: relative;
+  display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: 3px;
+}
+.take-bars i {
+  flex: none; width: 3px; border-radius: 2px; background: currentColor; opacity: .55;
+  transition: height .09s linear, opacity .4s ease;
+}
+.take.closing .take-clock, .take.closing .take-bars { color: var(--warning); }
+.take.closing .take-bars i { opacity: .8; }
+/* Cleaning: the bars settle flat and faint, and one soft band of light moves
+ * slowly across them — calm, low-contrast, no spinner. */
+.take.cleaning .take-bars i { opacity: .22; transition: height .5s ease, opacity .5s ease; }
+.take.cleaning .take-bars::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, currentColor 16%, transparent) 50%, transparent 100%);
+  background-size: 45% 100%; background-repeat: no-repeat;
+  animation: loamShimmer 2.6s ease-in-out infinite;
+}
+@keyframes loamShimmer { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+/* Live mode: what the browser hears, in the field's own type, where the bars
+ * would be. It wraps and grows as the field would, to the field's own six
+ * lines, and the clock and the controls stay on its last line. */
+.take.live { align-items: flex-end; }
+.take.live .take-clock { padding-bottom: 11px; }
+.take-words {
+  flex: 1; min-width: 0; font-size: 16px; line-height: 1.35; color: var(--paper-ink);
+  padding: 7px 0 5px; max-height: 132px; overflow-y: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+.take-words.empty { color: var(--paper-ink-3); }
+/* The recogniser's running guess is muted and what it has settled is full ink,
+ * so a word it corrects changes colour as well as spelling — which is what makes
+ * the field read as live. The caret after the words blinks while it listens and
+ * goes when it stops. */
+.take-words .guess { color: var(--paper-ink-3); }
+.take-caret {
+  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px;
+  vertical-align: -0.2em; border-radius: 1px; background:var(--paper-ink);
+  animation: loamCaret 1.05s steps(1, end) infinite;
+}
+@keyframes loamCaret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .take-caret { animation: none; opacity: .7; } }
+.take-controls { flex: none; display: flex; align-items: center; gap: 8px; }
+.takebtn {
+  width: 32px; height: 32px; border-radius: 999px; flex: none;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.takebtn.discard { background: var(--latte-foam); border: 1px solid var(--paper-rule); color: var(--latte-foam-ink); }
+.takebtn.keep { background: var(--latte-espresso); border: 0; color: var(--latte-espresso-ink); }
+@media (hover: hover) {
+  .takebtn.discard:hover { background: var(--latte-hover); color: var(--latte-foam-ink); }
+  .takebtn.keep:hover { background: var(--latte-espresso-hover); }
+}
+.takebtn:active { opacity: .8; }
+
+/* Row two while a take is going: every control in it at the design's disabled
+ * strength and the send gone, so the two controls in the field are the only
+ * live things in the composer. */
+.composer-actions.quiet > button:disabled, .editor-foot.quiet > button:disabled { opacity: .4; }
+.roundmic:disabled { opacity: .4; }
+
+/* Dictating in the editor: its field is hidden under the take as the
+ * composer's is, and the take sits at the top of the page on the measure of the
+ * text it stands in for. See "the take", further up. */
+.editor-body.taking { align-items: flex-start; }
+.editor-body.taking .editor-draft { display: none; }
+.editor-body .take { max-width: 760px; margin: 0 auto; width: 100%; padding-top: 6px; }
+
+.roundmic { width: 40px; height: 40px; border-radius: 999px; border: 0; display: flex; align-items: center; justify-content: center; flex: none; background: var(--latte-foam); color: var(--latte-foam-ink); }
+.roundmic.on { background: var(--latte-espresso); color: var(--latte-espresso-ink); }
+.fs-tools .roundmic { flex: none; width: 44px; height: 44px; }
+@media (max-width:1099px) { .roundmic { min-width:44px; min-height:44px; } }
+@media (hover: hover) { .roundmic:not(.on):hover { background:var(--latte-hover); color:var(--latte-hover-ink); } }
