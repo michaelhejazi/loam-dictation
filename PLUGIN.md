@@ -1,10 +1,15 @@
 ---
 id: dictation
 name: Dictation
-version: 1.1.1
+version: 1.1.2
 author: Michael Hejazi
 api: 0
 kind: [extension]
+description: "Talk instead of typing: say it, and tidy words land in your draft."
+screenshots:
+  - {src: assets/shots/dictation-recording.webp, src_dark: assets/shots/dictation-recording-dark.webp, caption: "Press the mic and talk. Take your time; it listens."}
+  - {src: assets/shots/dictation-landed.webp, src_dark: assets/shots/dictation-landed-dark.webp, caption: "Your words land in the draft, tidied. Sending is still yours."}
+  - {src: assets/shots/dictation-polish.webp, src_dark: assets/shots/dictation-polish-dark.webp, caption: "Choose how much it tidies: Off, Light or Full."}
 icon: assets/icon.svg
 places: [composer.tool, settings.section]
 keys:
@@ -24,10 +29,35 @@ server:
   run: node server/main.js
 ---
 
-Dictate into the composer, expanded editor or Files editor. Reads agent/thread
-names and the host's dictation terms to bias recognition. Inserts words in the
-current draft; writing a file or sending a message remains the person's action.
-Turning this plugin off releases the microphone and removes its controls and
-settings. Saved preferences stay in place. Open Settings → Plugins → Dictation
-to choose mode, polish, recording length and microphone. Live recognition may send audio to the browser vendor's
-service; use recorded mode for the app server's configured transcription path.
+Press the microphone in the composer, say what you want to say, and your
+words land in the draft, tidied up. Sending the message or saving the file is
+still yours to do.
+
+## What you can do
+
+- **Talk anywhere you type**: the composer, the bigger editor, and notes in
+  Files.
+- **Get tidy words, not a transcript.** *Polish* takes out the ums and fixes
+  names and grammar: Off, Light or Full.
+- **Be understood.** It knows your agents' and threads' names, and any terms
+  you add to your dictation terms note.
+- **Record first, or watch it write as you speak**, whichever suits you.
+
+## How to use it
+
+1. Add a Google (Gemini) key in **Settings › Connections › API keys**.
+2. Press the microphone, and talk.
+3. Press ✓ when you're done. Your words land in the draft.
+
+---
+
+## Technical details
+
+Record first sends the take to this plugin's own server (`/x/dictation/`),
+which sends it to Google's Gemini with the key and answers the words; the
+page never holds the key. As you speak uses the browser's own speech
+recognition, whose service the browser chooses. It reads the agents' and
+threads' names and the vault's terms note (`GET terms`) to bias what it
+hears. Turning it off releases the microphone and removes its controls; your
+preferences (mode, polish, longest recording, microphone) are kept in this
+browser.
