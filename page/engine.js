@@ -150,10 +150,21 @@ function startLive(target) {
     host.schedule()
   }
   here.addEventListener('end', ended)
-  here.addEventListener('error', ended)
+  here.addEventListener('error', event => {
+    ended()
+    if (event.error !== 'aborted' && host.state.rec?.mode === 'live' && !host.state.rec.words) {
+      host.state.rec = null
+      say(event.error === 'not-allowed' ? 'This browser needs microphone permission to dictate.' :
+        'This browser could not recognise speech. Try again or use a server key.', { act: 'guide', label: 'Get a key' })
+    }
+  })
   host.captureStarted()
   audioSessionType('play-and-record')
-  here.start()
+  try { here.start() } catch {
+    ended(); host.state.rec = null
+    say('This browser could not start recognition.', { act: 'guide', label: 'Get a key' })
+    return
+  }
   screen.hold()
   sense('started')
   host.schedule()
@@ -192,6 +203,7 @@ function canRecord() {
 }
 
 function dictationMode() {
+  if (host.provider?.() === 'browser') return Recogniser ? 'browser' : null
   if (host.state.dictation.mode === 'browser' && Recogniser) return 'browser'
   if (canRecord()) return 'record'
   if (Recogniser) return 'browser'
@@ -238,7 +250,7 @@ async function startRecording(target) {
   // The cap is read at the press and kept with the take, so a change in
   // Settings while it records is the next take's and not this one's.
   const maxMs = recordMaxMs(host.state.dictation.maxMinutes)
-  const take = { mode: 'record', phase: 'recording', target, caret, started: Date.now(), elapsed: 0, maxMs, levels: [], audio: null, retried: false, capture: {} }
+  const take = { mode: 'record', provider: host.provider?.(), phase: 'recording', target, caret, started: Date.now(), elapsed: 0, maxMs, levels: [], audio: null, retried: false, capture: {} }
   host.state.rec = take
   host.captureStarted()
   audioSessionType('play-and-record')
@@ -430,7 +442,7 @@ async function transcribeTake() {
     form.append('audio', take.audio, 'take')
     form.append('terms', JSON.stringify(vocabularyNow(take.noteTerms)))
     form.append('polish', host.state.dictation.polish)
-    const res = await fetch(`${SERVER}transcribe`, { method: 'POST', body: form, signal: abort?.signal })
+    const res = await fetch(`${SERVER}transcribe`, { method: 'POST', headers: take.provider ? { 'x-speech-provider': take.provider } : {}, body: form, signal: abort?.signal })
     const body = await res.json().catch(() => null)
     if (res.ok) {
       words = String(body?.text ?? '').trim()
@@ -453,7 +465,7 @@ async function transcribeTake() {
       const reach = typeof host.goSettings === 'function'
       say(reach ? NEEDS_KEY : `${NEEDS_KEY} Add one in Settings › Plugins › Dictation.`, reach ? { act: 'settings', label: 'Add a key', detail: failed } : null)
     } else {
-      say(TAKE_FAILED, take.retried ? null : { act: 'retry', label: 'Retry', take, detail: failed })
+      say(/OpenAI|Google|Gemini|provider changed/i.test(failed) ? failed : TAKE_FAILED, take.retried ? null : { act: 'retry', label: 'Retry', take, detail: failed })
     }
     restoreField(take)
   } else if (words === '') {
@@ -565,6 +577,7 @@ function actOnNotice() {
   host.state.takeNotice = null
   host.schedule()
   if (!offer) return
+  if (offer.act === 'guide') return host.guide.open()
   if (offer.act === 'settings') {
     host.goSettings?.('plugins', 'dictation')
     return
@@ -678,6 +691,8 @@ function refocus(field, md, caret) {
 function pressMic(target = 'draft') {
   if (host.state.rec) return
   hush()
+  if (host.provider && !host.provider()) return say('Checking the speech provider. Try the microphone again in a moment.')
+  if (host.provider?.() === 'browser' && !Recogniser) return say('This browser has no speech recognition. A free Gemini key enables recording.', { act: 'guide', label: 'Get a key' })
   if (dictationMode() === 'record') {
     // The note is asked for now, while the person speaks, and waited on only
     // when the take is ready to go. Live has no terms to give: the browser's
@@ -1000,7 +1015,8 @@ const TERMS_NOT_CONNECTED = 'No names and terms note yet. Add one to your vault 
 function settingsDictation({ back = true } = {}) {
   const d = host.state.dictation
   const mode = dictationMode()
-  const can = { record: canRecord(), browser: Boolean(Recogniser) }
+  const browserOnly = host.provider?.() === 'browser'
+  const can = { record: !browserOnly && canRecord(), browser: Boolean(Recogniser) }
   const chosen = MODES.find((m) => m.id === d.mode)
   const minutes = d.maxMinutes
   const mics = host.state.mics
@@ -1014,6 +1030,7 @@ function settingsDictation({ back = true } = {}) {
     )
 
   return [
+    host.guide?.settings(mode === 'browser' ? 'browser' : host.provider?.()),
     back ? host.settingsBack('Settings', 'root') : null,
     back ? host.settingsHead('Dictation', 'For this device.') : h('p', { class: 'note', text: 'Dictation preferences for this device.' }),
 
@@ -1021,10 +1038,10 @@ function settingsDictation({ back = true } = {}) {
       'div',
       { class: 'card' },
       h('div', { class: 'kicker', text: 'Mode' }),
-      segmentedControl({ label: 'Dictation mode', options: MODES.map(m => ({ ...m, disabled: !can[m.id] })), value: d.mode, choose: id => setDictation({ mode: id }) }),
-      h('div', { class: 'note', text: chosen.note }),
+      segmentedControl({ label: 'Dictation mode', options: MODES.map(m => ({ ...m, disabled: !can[m.id] })), value: browserOnly ? 'browser' : d.mode, choose: id => setDictation({ mode: id }) }),
+      h('div', { class: 'note', text: browserOnly ? (Recogniser ? 'Your browser recognises the words as you speak.' : 'A server key enables Record first on this device.') : chosen.note }),
       // The choice stands, and says when this browser cannot honour it.
-      mode !== null && mode !== d.mode
+      !browserOnly && mode !== null && mode !== d.mode
         ? h('div', { class: 'note warn', text: `This browser cannot do that, so the mic uses ${mode === 'record' ? 'Record first' : 'As you speak'}.` })
         : null,
       mode === null ? h('div', { class: 'note warn', text: 'Speech input is unavailable in this browser.' }) : null,
@@ -1034,8 +1051,8 @@ function settingsDictation({ back = true } = {}) {
       'div',
       { class: 'card' },
       h('div', { class: 'kicker', text: 'Polish' }),
-      segmentedControl({ label: 'Polish', options: POLISH.map(p => ({ ...p, disabled: d.mode !== 'record' })), value: d.polish, choose: id => setDictation({ polish: id }) }),
-      h('div', { class: 'note', text: d.mode === 'record' ? POLISH.find((p) => p.id === d.polish).note : 'Polish is available with Record first.' }),
+      browserOnly ? null : segmentedControl({ label: 'Polish', options: POLISH.map(p => ({ ...p, disabled: d.mode !== 'record' })), value: d.polish, choose: id => setDictation({ polish: id }) }),
+      h('div', { class: 'note', text: browserOnly ? 'A server key enables Polish.' : d.mode === 'record' ? POLISH.find((p) => p.id === d.polish).note : 'Polish is available with Record first.' }),
     ),
 
     h(

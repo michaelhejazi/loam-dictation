@@ -24,6 +24,8 @@
 // about 4.8 MB. Twelve is room for either and for a longer cap later, and it is
 // still well under Gemini's inline request ceiling once base64 has made it a
 // third bigger.
+import { keyFrom } from './http.js'
+import { transcribeOpenAI, openAIPolisher, MODEL as OPENAI_MODEL } from './openai.js'
 import { createPolisher, polishLevel, polishTranscript } from './polish.js'
 
 export const TRANSCRIBE_MAX_BYTES = 12 * 1024 * 1024
@@ -134,8 +136,13 @@ class Refusal extends Error {
   }
 }
 
-export function createTranscriber(config, { fetchImpl = fetch, getKey = async () => config.geminiApiKey || '', polisher = createPolisher(config, { fetchImpl, getKey }) } = {}) {
+export function createTranscriber(config, { fetchImpl = fetch, getKey = async () => config.geminiApiKey || '', getOpenAIKey = keyFrom(config.keysFile, 'OPENAI_API_KEY'), polisher = createPolisher(config, { fetchImpl, getKey }) } = {}) {
   const endpoint = `${config.geminiUrl}/v1beta/interactions`
+
+  async function provider() {
+    if (await getKey()) return 'google'
+    return (await getOpenAIKey()) ? 'openai' : 'browser'
+  }
 
   async function call(body, timeoutMs) {
     let res
@@ -167,6 +174,7 @@ export function createTranscriber(config, { fetchImpl = fetch, getKey = async ()
   }
 
   return {
+    provider,
     get configured() {
       return Boolean(config.geminiApiKey)
     },
@@ -179,7 +187,7 @@ export function createTranscriber(config, { fetchImpl = fetch, getKey = async ()
     // The answer's `polish` says what happened, when it was asked for:
     // `{level, ran}`, and `why` when it fell back, a reason to show beside
     // words that landed anyway.
-    async transcribe({ audio, contentType, vocabulary, polish = 'off' }) {
+    async transcribe({ audio, contentType, vocabulary, polish = 'off', expectedProvider }) {
       const report = {
         bytes: audio?.length ?? 0,
         mime: contentType ?? null,
@@ -208,7 +216,9 @@ export function createTranscriber(config, { fetchImpl = fetch, getKey = async ()
         }
       }
       try {
-        if (!await getKey()) {
+        const selected = await provider()
+        if (expectedProvider && expectedProvider !== selected) throw new Refusal(409, 'The speech provider changed. Start a new recording.')
+        if (selected === 'browser') {
           throw new Refusal(503, 'Dictation needs a Gemini API key. Add a Google key under API keys, in Settings › Connections.')
         }
         if (!audio || audio.length === 0) {
@@ -225,36 +235,50 @@ export function createTranscriber(config, { fetchImpl = fetch, getKey = async ()
         report.terms = terms.length
         report.timeout_ms = geminiTimeoutMs(audio.length)
 
-        let out = await timed(geminiRequest({ audio, mimeType, vocabulary: terms }))
-        let biased = terms.length > 0
-        report.biased = biased
-        // Smart mode and custom vocabulary are documented as going together;
-        // should the model ever refuse the pair, the cleanup is the thing to
-        // keep, so the take is sent again without the terms rather than lost.
-        if (out.status === 400 && biased && saysVocabulary(out)) {
-          out = await timed(geminiRequest({ audio, mimeType, vocabulary: [] }))
-          biased = false
-          report.biased = false
-          report.retried_without_terms = true
-        }
-        if (!out.ok) {
-          const said = out.body?.error?.message
-          if (out.status === 429) {
-            throw new Refusal(429, `Gemini is refusing more transcriptions for now${said ? `: ${said}` : '.'}`)
+        let text, biased
+        let polishWith = polisher
+        if (selected === 'openai') {
+          const key = await getOpenAIKey()
+          try {
+            ;({ text, biased } = await transcribeOpenAI({ audio, mimeType, terms, key, timeout: report.timeout_ms, fetchImpl }))
+          } catch (err) {
+            throw new Refusal(err.status === 429 ? 429 : 502, err.status ? err.message : 'OpenAI could not finish the transcription.')
           }
-          throw new Refusal(502, `Gemini could not transcribe this (${out.status})${said ? `: ${said}` : '.'}`)
+          polishWith = openAIPolisher(key, fetchImpl)
+        } else {
+          let out = await timed(geminiRequest({ audio, mimeType, vocabulary: terms }))
+          biased = terms.length > 0
+          report.biased = biased
+          // Smart mode and custom vocabulary are documented as going together;
+          // should the model ever refuse the pair, the cleanup is the thing to
+          // keep, so the take is sent again without the terms rather than lost.
+          if (out.status === 400 && biased && saysVocabulary(out)) {
+            out = await timed(geminiRequest({ audio, mimeType, vocabulary: [] }))
+            biased = false
+            report.biased = false
+            report.retried_without_terms = true
+          }
+          if (!out.ok) {
+            const said = out.body?.error?.message
+            if (out.status === 429) {
+              throw new Refusal(429, `Gemini is refusing more transcriptions for now${said ? `: ${said}` : '.'}`)
+            }
+            throw new Refusal(502, `Gemini could not transcribe this (${out.status})${said ? `: ${said}` : '.'}`)
+          }
+          if (out.body?.status && out.body.status !== 'completed') {
+            throw new Refusal(502, `Gemini did not finish transcribing this (${out.body.status}).`)
+          }
+          text = transcriptOf(out.body)
         }
-        if (out.body?.status && out.body.status !== 'completed') {
-          throw new Refusal(502, `Gemini did not finish transcribing this (${out.body.status}).`)
-        }
-        const text = transcriptOf(out.body)
+        report.biased = biased
         report.chars = text.length
         if (text === '') {
-          throw new Refusal(422, 'Gemini heard no words in this recording.', 'heard-no-words')
+          throw new Refusal(422, selected === 'openai' ? 'OpenAI heard no words in this recording.' : 'Gemini heard no words in this recording.', 'heard-no-words')
         }
         const level = polishLevel(polish)
         const started = performance.now()
-        const polished = await polishTranscript(polisher, text, level, cleanVocabulary(vocabulary, Infinity))
+        const polished = await polishTranscript(polishWith, text, level, cleanVocabulary(vocabulary, Infinity))
+        if (selected === 'openai' && polished.why) polished.why = polished.why.replace(/^Gemini/, 'OpenAI')
         if (level !== 'off') {
           report.polish_ms = Math.round(performance.now() - started)
           report.polish_ran = polished.ran
@@ -262,7 +286,7 @@ export function createTranscriber(config, { fetchImpl = fetch, getKey = async ()
           // line holds nothing that was said.
           if (!polished.ran) report.polish_why = polished.why.startsWith('the answer had "') ? 'a name that wasn’t said' : polished.why
         }
-        const body = { text: polished.text, biased, model: TRANSCRIBE_MODEL }
+        const body = { text: polished.text, biased, model: selected === 'openai' ? OPENAI_MODEL : TRANSCRIBE_MODEL }
         if (level !== 'off') body.polish = polished.ran ? { level, ran: true } : { level, ran: false, why: polished.why }
         return { status: 200, body, report }
       } catch (err) {
