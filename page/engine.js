@@ -155,14 +155,14 @@ function startLive(target) {
     if (event.error !== 'aborted' && host.state.rec?.mode === 'live' && !host.state.rec.words) {
       host.state.rec = null
       say(event.error === 'not-allowed' ? 'This browser needs microphone permission to dictate.' :
-        'This browser could not recognise speech. Try again or use a server key.', { act: 'guide', label: 'Get a key' })
+        'This browser could not recognise speech. Try again.', host.provider?.() === 'browser' ? { act: 'guide', label: 'Get a key' } : null)
     }
   })
   host.captureStarted()
   audioSessionType('play-and-record')
   try { here.start() } catch {
     ended(); host.state.rec = null
-    say('This browser could not start recognition.', { act: 'guide', label: 'Get a key' })
+    say('This browser could not start recognition.', host.provider?.() === 'browser' ? { act: 'guide', label: 'Get a key' } : null)
     return
   }
   screen.hold()
@@ -1030,7 +1030,7 @@ function settingsDictation({ back = true } = {}) {
     )
 
   return [
-    host.guide?.settings(mode === 'browser' ? 'browser' : host.provider?.()),
+    host.guide?.settings(host.provider?.(), mode === 'browser' ? 'browser' : host.provider?.()),
     back ? host.settingsBack('Settings', 'root') : null,
     back ? host.settingsHead('Dictation', 'For this device.') : h('p', { class: 'note', text: 'Dictation preferences for this device.' }),
 
