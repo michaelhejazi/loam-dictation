@@ -37,7 +37,7 @@ export function createDictationServer({ config, transcriber, log = { info() {}, 
         mime: req.headers['content-type'] ?? null, outcome: 'error', status: 413, error: tooBig() })
       return sendJson(res, 413, { error: tooBig() })
     }
-    const out = await transcriber.transcribe({ audio, contentType, vocabulary, polish })
+    const out = await transcriber.transcribe({ audio, contentType, vocabulary, polish, expectedProvider: req.headers['x-speech-provider'] })
     const report = { event: 'transcribe', status: out.status, ...out.report }
     if (report.outcome === 'error') log.warn(report)
     else log.info(report)
@@ -47,6 +47,7 @@ export function createDictationServer({ config, transcriber, log = { info() {}, 
   async function route(req, res) {
     const url = new URL(req.url, 'http://plugin.invalid')
     const rest = url.pathname.replace(/\/+$/, '') || '/'
+    if (rest === '/status' && req.method === 'GET') return sendJson(res, 200, { provider: await transcriber.provider() })
     if (rest === '/up' && req.method === 'GET') return sendJson(res, 200, { ok: true })
     if (rest === '/transcribe' && req.method === 'POST') return await transcribe(req, res)
     if (rest === '/terms' && req.method === 'GET') {

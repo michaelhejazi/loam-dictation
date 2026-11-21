@@ -1,7 +1,7 @@
 ---
 id: dictation
 name: Dictation
-version: 1.1.3
+version: 1.2.0
 author: Michael Hejazi
 api: 0
 kind: [extension]
@@ -10,14 +10,21 @@ screenshots:
   - {src: assets/shots/dictation-recording.webp, src_dark: assets/shots/dictation-recording-dark.webp, caption: "Press the mic and talk. Take your time; it listens."}
   - {src: assets/shots/dictation-landed.webp, src_dark: assets/shots/dictation-landed-dark.webp, caption: "Your words land in the draft, tidied. Sending is still yours."}
   - {src: assets/shots/dictation-polish.webp, src_dark: assets/shots/dictation-polish-dark.webp, caption: "Choose how much it tidies: Off, Light or Full."}
+  - {src: assets/shots/dictation-guide.webp, src_dark: assets/shots/dictation-guide-dark.webp, caption: "Add one shared Gemini key in Settings."}
 icon: assets/icon.svg
-places: [composer.tool, settings.section]
+places: [composer.tool, settings.section, app.overlay]
 keys:
   - provider: google
+    optional: true
     why: Transcribes and tidies what you record
+  - provider: openai
+    optional: true
+    why: Transcribes recordings and tidies the words when there is no Google key
 overrides: []
 touches:
   network:
+    - host: api.openai.com
+      why: Transcribes recordings and tidies the words with the OpenAI key when there is no Google key
     - host: generativelanguage.googleapis.com
       why: Sends recorded microphone audio from its own server for transcription and cleanup
     - host: browser-managed
@@ -29,35 +36,16 @@ server:
   run: node server/main.js
 ---
 
-Press the microphone in the composer, say what you want to say, and your
-words land in the draft, tidied up. Sending the message or saving the file is
-still yours to do.
-
-## What you can do
-
-- **Talk anywhere you type**: the composer, the bigger editor, and notes in
-  Files.
-- **Get tidy words, not a transcript.** *Polish* takes out the ums and fixes
-  names and grammar: Off, Light or Full.
-- **Be understood.** It knows your agents' and threads' names, and any terms
-  you add to your dictation terms note.
-- **Record first, or watch it write as you speak**, whichever suits you.
-
 ## How to use it
 
-1. Add a Google (Gemini) key in **Settings › Connections › API keys**.
-2. Press the microphone, and talk.
-3. Press ✓ when you're done. Your words land in the draft.
+Press the microphone in the composer or Files and speak. Press ✓ to keep the words. With no key, As you speak uses your browser’s recognition. Browser support varies. Record first and Polish use a server key.
 
----
+## What you need, and what leaves your server
 
-## Technical details
+Loam uses a Google key first, then an OpenAI key, then the browser. A provider error stays with that provider. Open Settings › Plugins › Dictation to see the provider. Follow the free Gemini key link, sign in to Google AI Studio, create a key and paste it in the guide. Loam checks it and saves it in Settings › Connections › API keys for both plugins.
 
-Record first sends the take to this plugin's own server (`/x/dictation/`),
-which sends it to Google's Gemini with the key and answers the words; the
-page never holds the key. As you speak uses the browser's own speech
-recognition, whose service the browser chooses. It reads the agents' and
-threads' names and the vault's terms note (`GET terms`) to bias what it
-hears. Turning it off releases the microphone and removes its controls; your
-preferences (mode, polish, longest recording, microphone) are kept in this
-browser.
+Eligible projects get a free quota without setting up billing. Google may use free-tier audio and text to improve its products. Check [availability](https://aistudio.google.com/docs/available-regions) and [your limits](https://aistudio.google.com/rate-limit).
+
+## What it touches
+
+Recording sends audio and vocabulary to the selected provider. As you speak may use the browser vendor’s speech service.

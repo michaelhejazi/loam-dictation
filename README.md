@@ -17,6 +17,8 @@ message or saving the file is still yours to do.
 
 ![Choose how much it tidies: Off, Light or Full](assets/shots/dictation-polish.webp)
 *Choose how much it tidies: Off, Light or Full.*
+![Add one shared Gemini key in Settings](assets/shots/dictation-guide.webp)
+*Add one shared Gemini key in Settings.*
 <!-- /loam:gallery -->
 
 ## What you can do
@@ -30,37 +32,34 @@ message or saving the file is still yours to do.
 - **Be understood.** It knows the names of your agents and threads, and the
   terms in your dictation terms note (edit it in Files or in Obsidian).
 - **Record first, or watch it write as you speak.** Record first (the
-  default) is recorded, then written down and tidied. As you speak uses your
+  default) with a server key is recorded, then written down and tidied. As you speak uses your
   browser's own speech recognition and writes while you talk.
 
 ## How to use it
 
-1. Get it from **Settings › Market › Dictation**.
-2. Add a Google (Gemini) key in **Settings › Connections › API keys**.
-3. Press the microphone in the composer and talk; press ✓ when you're done.
+Press the microphone in the composer or Files and speak. Press ✓ to keep the words. With no key, As you speak uses your browser’s recognition. Browser support varies. Record first and Polish use a server key.
+
+Open Settings › Plugins › Dictation to see the provider. Follow the free Gemini key link, sign in to Google AI Studio, create a key and paste it in the guide. Loam checks it and saves it in Settings › Connections › API keys for both plugins.
 
 ## What you need, and what leaves your server
 
-A Google (Gemini) API key for Record first, saved once in Loam (or one for
-Dictation alone, with "use a different key" on the same page). As you speak
-needs no key, only a browser that offers speech recognition.
+Loam uses a Google key first, then an OpenAI key, then the browser. A provider error stays with that provider. Record first sends your audio and vocabulary to the selected provider. Polish sends the transcript and terms to that same provider. As you speak may send audio to the browser vendor.
 
-Your recording goes to Google from your own Loam server, only when you finish
-a take, and your key never reaches the browser. As you speak sends audio to
-whatever service your browser uses, so choose Record first when you want it
-to go only through your Loam.
+Eligible projects can use Google’s free quota without setting up billing. Google may use free-tier inputs and outputs to improve its products. Quotas vary by project and model. Google restricts API use to eligible regions and professional or business development. Serving users in the EEA, Switzerland or the UK requires paid services. [Google terms](https://aistudio.google.com/docs/terms) · [Available regions](https://aistudio.google.com/docs/available-regions) · [Project limits](https://aistudio.google.com/rate-limit)
 
 ---
+
+Version 1.2 adds an optional OpenAI key and a connection to api.openai.com. Loam asks you to review this new access when updating.
 
 ## Technical details
 
 ### What it touches
 
+- **api.openai.com** handles audio, vocabulary and text for transcription and polish when OpenAI is selected.
 - **Your microphone**, only while you are recording. Turning the plugin off
   releases it.
-- **generativelanguage.googleapis.com**: a recorded take goes there from
-  this plugin's own server on your Loam, which holds the key. The browser
-  never sees the key.
+- **generativelanguage.googleapis.com** when Google is selected: a recorded take goes there from
+  this plugin's own server on your Loam, which holds the key. The server supplies the key on that request.
 - **Your browser's recognition service**, in As you speak only.
 - **Conversation records, read only**: your agents' and threads' names, to
   bias what it hears. It never sends a message for you.
@@ -77,7 +76,7 @@ the plugin off and on again. The terms note is read fresh for every take.
 In Settings › Plugins, with its link:
 
 ```
-https://github.com/michaelhejazi/loam-dictation/tree/v1.1.3
+https://github.com/michaelhejazi/loam-dictation/tree/v1.2.0
 ```
 
 ### For builders
