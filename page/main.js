@@ -98,7 +98,7 @@ export function activate(loam) {
     if (!suggestion || suggestion.entry !== (context?.host?.panelId ?? context?.panel ?? 'main') || suggestion.target !== context.target) return null
     const { h, icon } = loam.ui
     return h('aside', { class: 'dictation-suggestion', 'aria-label': 'Dictation tip' },
-      h('span', { class: 'dictation-suggestion-copy', text: 'Browser speech · Better with Gemini' }),
+      h('span', { class: 'dictation-suggestion-copy', text: 'No Gemini key, so your browser did this dictation.' }),
       guide.link('Add free key'),
       h('button', { class: 'iconbtn ghost', type: 'button', 'aria-label': 'Don’t show again', title: 'Don’t show again',
         onclick: () => {

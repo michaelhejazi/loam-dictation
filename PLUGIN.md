@@ -1,7 +1,7 @@
 ---
 id: dictation
 name: Dictation
-version: 1.2.4
+version: 1.2.5
 author: Michael Hejazi
 api: 0
 default_on: false
