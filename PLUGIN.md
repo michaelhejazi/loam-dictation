@@ -1,7 +1,7 @@
 ---
 id: dictation
 name: Dictation
-version: 1.2.5
+version: 1.2.6
 author: Michael Hejazi
 api: 0
 default_on: false
@@ -12,7 +12,7 @@ screenshots:
   - {src: assets/shots/dictation-landed.webp, src_dark: assets/shots/dictation-landed-dark.webp, caption: "Your words land in the draft, tidied. Sending is still yours."}
   - {src: assets/shots/dictation-polish.webp, src_dark: assets/shots/dictation-polish-dark.webp, caption: "Choose how much it tidies: Off, Light or Full."}
   - {src: assets/shots/dictation-guide.webp, src_dark: assets/shots/dictation-guide-dark.webp, caption: "Add one shared Gemini key in Settings."}
-icon: assets/icon.svg
+icon: assets/icon.webp
 places: [composer.tool, settings.section, app.overlay]
 keys:
   - provider: google
