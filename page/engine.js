@@ -3,7 +3,7 @@
 const SERVER = '/x/dictation/'
 // Mounted once. Cross-module state and operations are explicit host services.
 export function mount(host, { segmentedControl }) {
-const { screenKeeper, feel, playTone, recordMaxMs, recorderType, RECORD_BITS_PER_SECOND, recordPhase, pushLevel, levelOf, dictationVocabulary, vaultTerms, mergeAt, LEVEL_BARS, clock, RECORD_MINUTES_MIN, RECORD_MINUTES_MAX, readField, caretPoint, setMarkdown, fetch, h, icon, longAgo } = host
+const { screenKeeper, feel, playTone, recordMaxMs, recorderType, RECORD_BITS_PER_SECOND, recordPhase, pushLevel, levelOf, dictationVocabulary, vaultTerms, cleanTerm, mergeAt, LEVEL_BARS, clock, RECORD_MINUTES_MIN, RECORD_MINUTES_MAX, readField, caretPoint, setMarkdown, fetch, h, icon, longAgo } = host
 
 
 // ---------------------------------------------------------------- dictation
@@ -462,8 +462,9 @@ async function transcribeTake() {
   if (failed !== null) {
     if (needsKey) {
       // No key is not a take that failed: say what is missing and where it goes.
-      const reach = typeof host.goSettings === 'function'
-      say(reach ? NEEDS_KEY : `${NEEDS_KEY} Add one in Settings › Plugins › Dictation.`, reach ? { act: 'settings', label: 'Add a key', detail: failed } : null)
+      say(NEEDS_KEY, host.guide
+        ? { act: 'guide', label: 'Add free key' }
+        : { act: 'settings', label: 'Add a key' })
     } else {
       say(/OpenAI|Google|Gemini|provider changed/i.test(failed) ? failed : TAKE_FAILED, take.retried ? null : { act: 'retry', label: 'Retry', take, detail: failed })
     }
@@ -506,19 +507,19 @@ async function loadTermsNote() {
   try {
     const res = await fetch(`${SERVER}terms`, { headers: { accept: 'application/json' } })
     const out = await res.json().catch(() => null)
-    if (!res.ok) throw Object.assign(new Error(out?.error || `The vault’s terms could not be read (${res.status}).`), { status: res.status })
+    if (!res.ok) throw Object.assign(new Error(out?.error || `The vault’s terms could not be read (${res.status}).`), { status: res.status, vaultPath: out?.path ?? null })
     host.state.termsNote = {
       loaded: true,
       found: true,
       path: out?.source ?? out?.path ?? null,
-      url: out?.obsidian_url ?? null,
+      vaultPath: out?.obsidian_url ? out.path : null,
       terms: vaultTerms(out),
       readAt: Date.now(),
       error: '',
     }
   } catch (err) {
     if (err.status === 404 || err.status === 405) {
-      host.state.termsNote = { loaded: true, found: false, path: null, url: null, terms: [], readAt: null, error: '' }
+      host.state.termsNote = { loaded: true, found: false, path: null, vaultPath: err.vaultPath, terms: [], readAt: null, error: '' }
     } else {
       host.state.termsNote = { ...host.state.termsNote, loaded: true, error: err.message || 'The vault’s terms could not be read.' }
     }
@@ -610,6 +611,7 @@ function keepTake() {
     return
   }
   land(take, take.words)
+  if (host.provider?.() === 'browser') host.browserTakeLanded?.(take.target)
 }
 
 
@@ -692,7 +694,7 @@ function pressMic(target = 'draft') {
   if (host.state.rec) return
   hush()
   if (host.provider && !host.provider()) return say('Checking the speech provider. Try the microphone again in a moment.')
-  if (host.provider?.() === 'browser' && !Recogniser) return say('This browser has no speech recognition. A free Gemini key enables recording.', { act: 'guide', label: 'Get a key' })
+  if (host.provider?.() === 'browser' && !Recogniser) return say('Browser speech recognition is unavailable here. Add a free Gemini key to record.', { act: 'guide', label: 'Add free key' })
   if (dictationMode() === 'record') {
     // The note is asked for now, while the person speaks, and waited on only
     // when the take is ready to go. Live has no terms to give: the browser's
@@ -853,7 +855,7 @@ function micButton(target) {
 // (`store.dictation`); every control writes the whole setting back through
 // `setDictation()` and the mic reads it at its next press, so nothing here
 // needs a reload. The names a take is biased towards are not this device's:
-// they are the terms note's, and the page only says where it is.
+// they are the terms note's, which the page opens in Files.
 const MODES = [
   {
     id: 'record',
@@ -863,7 +865,7 @@ const MODES = [
   {
     id: 'browser',
     label: 'As you speak',
-    note: 'Words appear while you speak, without cleanup.',
+    note: 'Words appear as you speak, without tidying or help from your terms note.',
   },
 ]
 
@@ -967,16 +969,57 @@ function forgetOldTerms() {
 
 
 
-// The fourth card: where the terms live, not the terms. The note's path opens
-// it in Obsidian when the host sends a link.
+function openTermsNote(path, row = null) {
+  return host.goFiles('vault', path, { isFile: true, mode: 'edit', row, returnToSettings: true })
+}
+
+let creatingTerms = false
+let termsCreateError = ''
+
+async function createTermsNote() {
+  const path = host.state.termsNote.vaultPath
+  if (!path || creatingTerms) return
+  const sheet = host.state.sheet
+  creatingTerms = true
+  termsCreateError = ''
+  host.schedule()
+  try {
+    const owner = await host.api('GET', '/owner').catch(() => null)
+    const names = [owner?.name, ...(host.state.agents?.list ?? []).map(agent => agent.name)]
+    const seed = names.map(cleanTerm).filter(name => name && !/[,#%]/.test(name))
+    const text = ['# Dictation terms', '### Add one name or term per line', '', ...vaultTerms({ terms: seed }), ''].join('\n')
+    const row = await host.api('POST', '/files/file', { root: 'vault', path, text }).catch(error => {
+      if (error.status !== 409) throw error
+      return null
+    })
+    const note = await loadTermsNote()
+    if (!row && !note.found) throw new Error(note.error || 'Files could not create the terms note at this path.')
+    if (host.state.sheet === sheet) openTermsNote(path, row)
+  } catch (error) {
+    termsCreateError = error.message || 'Files could not create the terms note.'
+  } finally {
+    creatingTerms = false
+    host.schedule()
+  }
+}
+
 function termsCard() {
   const n = host.state.termsNote
   let body
   if (!n.loaded) body = [h('div', { class: 'note', text: 'Reading the vault’s terms…' })]
   else if (n.found) {
     body = [
-      n.url
-        ? h('a', { href: n.url, class: 'loginlink termsnote', text: n.path ?? 'The terms note' })
+      n.vaultPath
+        ? h('a', {
+            href: '/files/vault/' + n.vaultPath.split('/').map(encodeURIComponent).join('/'),
+            class: 'loginlink termsnote',
+            text: n.path ?? 'The terms note',
+            onclick: event => {
+              if (event.button || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+              event.preventDefault()
+              openTermsNote(n.vaultPath)
+            },
+          })
         : h('div', { class: 'mono termsnote', text: n.path ?? 'The terms note' }),
       h('div', {
         class: 'setrow-sub termsmeta',
@@ -985,15 +1028,22 @@ function termsCard() {
           `read ${longAgo(Date.now() - n.readAt)} ago`,
         ].join(' · '),
       }),
-      h('div', { class: 'note', text: 'Edit the note in Obsidian; every take reads it fresh.' }),
+      h('div', { class: 'note', text: 'Add one name or term per line. Each recording reads the note fresh.' }),
     ]
   } else if (n.error) body = []
-  else body = [h('div', { class: 'note', text: TERMS_NOT_CONNECTED })]
+  else if (n.vaultPath) body = [
+    h('div', { class: 'note', text: `Create the note at ${n.vaultPath}.` }),
+    h('button', { type: 'button', class: 'pillbtn primary', disabled: creatingTerms,
+      text: creatingTerms ? 'Creating note…' : 'Create terms note', onclick: createTermsNote }),
+    termsCreateError ? h('div', { class: 'note warn', role: 'alert', text: termsCreateError }) : null,
+  ]
+  else body = [h('div', { class: 'note', text: 'This install has no terms note location in Files.' })]
   const old = host.state.dictation.terms
   return h(
     'div',
-    { class: 'card' },
+    { class: 'card dictation-terms', key: 'dictation-terms' },
     h('div', { class: 'kicker', text: 'Names and terms' }),
+    h('div', { class: 'note', text: 'Record first sends these terms to the transcriber to help spell them correctly.' }),
     ...body,
     n.error ? h('div', { class: 'note warn', text: n.error }) : null,
     old.length > 0
@@ -1008,16 +1058,14 @@ function termsCard() {
   )
 }
 
-const NEEDS_KEY = 'Dictation needs a Gemini API key.'
-
-const TERMS_NOT_CONNECTED = 'No names and terms note yet. Add one to your vault to help dictation spell your names.'
+const NEEDS_KEY = 'Without a Gemini or OpenAI key, dictation uses browser speech recognition.'
 
 function settingsDictation({ back = true } = {}) {
   const d = host.state.dictation
   const mode = dictationMode()
   const browserOnly = host.provider?.() === 'browser'
   const can = { record: !browserOnly && canRecord(), browser: Boolean(Recogniser) }
-  const chosen = MODES.find((m) => m.id === d.mode)
+  const chosen = MODES.find((m) => m.id === (mode ?? d.mode))
   const minutes = d.maxMinutes
   const mics = host.state.mics
   const chosenGone = d.deviceId && mics.loaded && !mics.list.some((m) => m.id === d.deviceId)
@@ -1029,35 +1077,38 @@ function settingsDictation({ back = true } = {}) {
       (d.deviceId ?? null) === id ? h('span', { class: 'setrow-value' }, icon.check(14)) : null,
     )
 
-  return [
+  const cards = [
     host.guide?.settings(host.provider?.(), mode === 'browser' ? 'browser' : host.provider?.()),
     back ? host.settingsBack('Settings', 'root') : null,
     back ? host.settingsHead('Dictation', 'For this device.') : h('p', { class: 'note', text: 'Dictation preferences for this device.' }),
 
     h(
       'div',
-      { class: 'card' },
+      { class: `card${mode === 'browser' ? ' dictation-browser-mode' : ''}`, key: 'dictation-mode' },
       h('div', { class: 'kicker', text: 'Mode' }),
       segmentedControl({ label: 'Dictation mode', options: MODES.map(m => ({ ...m, disabled: !can[m.id] })), value: browserOnly ? 'browser' : d.mode, choose: id => setDictation({ mode: id }) }),
-      h('div', { class: 'note', text: browserOnly ? (Recogniser ? 'Your browser recognises the words as you speak.' : 'A server key enables Record first on this device.') : chosen.note }),
+      h('div', { class: 'note', text: browserOnly && !Recogniser ? 'Add a free Gemini key to use Record first on this device.' : chosen.note }),
       // The choice stands, and says when this browser cannot honour it.
       !browserOnly && mode !== null && mode !== d.mode
         ? h('div', { class: 'note warn', text: `This browser cannot do that, so the mic uses ${mode === 'record' ? 'Record first' : 'As you speak'}.` })
         : null,
       mode === null ? h('div', { class: 'note warn', text: 'Speech input is unavailable in this browser.' }) : null,
     ),
+  ]
+  if (mode !== 'record') return cards
 
+  return [...cards,
     h(
       'div',
-      { class: 'card' },
+      { class: 'card', key: 'dictation-polish' },
       h('div', { class: 'kicker', text: 'Polish' }),
-      browserOnly ? null : segmentedControl({ label: 'Polish', options: POLISH.map(p => ({ ...p, disabled: d.mode !== 'record' })), value: d.polish, choose: id => setDictation({ polish: id }) }),
-      h('div', { class: 'note', text: browserOnly ? 'A server key enables Polish.' : d.mode === 'record' ? POLISH.find((p) => p.id === d.polish).note : 'Polish is available with Record first.' }),
+      segmentedControl({ label: 'Polish', options: POLISH, value: d.polish, choose: id => setDictation({ polish: id }) }),
+      h('div', { class: 'note', text: POLISH.find(p => p.id === d.polish).note }),
     ),
 
     h(
       'div',
-      { class: 'card' },
+      { class: 'card', key: 'dictation-length' },
       h('div', { class: 'kicker', text: 'Longest recording' }),
       h(
         'div',
@@ -1085,7 +1136,7 @@ function settingsDictation({ back = true } = {}) {
 
     h(
       'div',
-      { class: 'card' },
+      { class: 'card', key: 'dictation-microphone' },
       h('div', { class: 'kicker', text: 'Microphone' }),
       h(
         'div',
@@ -1103,7 +1154,6 @@ function settingsDictation({ back = true } = {}) {
           )
         : null,
       mics.error ? h('div', { class: 'note warn', text: mics.error }) : null,
-      h('div', { class: 'note', text: 'Record first uses this microphone; As you speak uses the system default.' }),
     ),
 
     termsCard(),
@@ -1162,7 +1212,6 @@ return Object.defineProperties({}, {
     copyOldTerms: { enumerable: true, get: () => copyOldTerms },
     forgetOldTerms: { enumerable: true, get: () => forgetOldTerms },
     termsCard: { enumerable: true, get: () => termsCard },
-    TERMS_NOT_CONNECTED: { enumerable: true, get: () => TERMS_NOT_CONNECTED },
     settingsDictation: { enumerable: true, get: () => settingsDictation }
 })
 }

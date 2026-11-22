@@ -117,3 +117,29 @@
   .speech-key-check { animation: speechKeyConnected 280ms var(--ease-standard) both; }
   @keyframes speechKeyConnected { from { transform: scale(.76); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 }
+
+.dictation-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0 0 6px;
+  padding: 0 3px 0 9px;
+  border: 1px solid var(--paper-rule);
+  border-radius: 12px;
+  background: var(--paper-pane);
+  color: var(--paper-ink);
+  font-size: 12px;
+}
+.dictation-suggestion-copy { flex: 1; }
+.dictation-suggestion .speech-key-link {
+  flex: none;
+  min-height: 38px;
+  padding: 0;
+  font-size: inherit;
+  white-space: nowrap;
+}
+.dictation-suggestion .iconbtn { flex: none; width: 34px; height: 38px; }
+.editor > .dictation-suggestion { margin-inline: 16px; }
+.dictation-terms > .pillbtn { align-self: flex-start; }
+.plugin-preferences:has(.dictation-browser-mode) ~ .plugin-keys { display: none; }

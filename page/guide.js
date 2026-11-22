@@ -1,4 +1,4 @@
-const labels = { google: 'Using Google', openai: 'Using OpenAI', browser: 'Using this browser' }
+const labels = { google: 'Using Google', openai: 'Using OpenAI', browser: 'Using browser speech recognition' }
 
 export function speechGuide(loam, plugin, benefit) {
   const { h, host, icon, menuSurface } = loam.ui
@@ -59,7 +59,7 @@ export function speechGuide(loam, plugin, benefit) {
     host.schedule()
   }
 
-  const link = () => h('button', { class: 'quietlink speech-key-link', type: 'button', text: benefit, onclick: open })
+  const link = (label = benefit) => h('button', { class: 'quietlink speech-key-link', type: 'button', text: label, onclick: open })
   const settings = (provider, active = provider) => h('section', { class: 'rows speech-provider' },
     h('strong', { class: 'setrow-title', role: 'status', text: labels[active] ?? 'Checking speech provider…' }),
     provider === 'browser' ? link() : null)

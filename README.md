@@ -30,7 +30,9 @@ message or saving the file is still yours to do.
   and keeps every sentence, *Full* tidies and organises sentences, paragraphs
   and lists.
 - **Be understood.** It knows the names of your agents and threads, and the
-  terms in your dictation terms note (edit it in Files or in Obsidian).
+  terms in your dictation terms note with Record first. Create or open the
+  note from Names and terms in Dictation settings and add one name or term
+  per line.
 - **Record first, or watch it write as you speak.** Record first (the
   default) with a server key is recorded, then written down and tidied. As you speak uses your
   browser's own speech recognition and writes while you talk.
@@ -66,18 +68,20 @@ Version 1.2 adds an optional OpenAI key and a connection to api.openai.com. Loam
 
 ### Settings
 
-Settings › Plugins › Dictation: the mode, the polish, the longest recording
-(1 to 15 minutes, 5 unless you change it), and which microphone. They are
-kept in this browser, so each device has its own, and they stay if you turn
-the plugin off and on again. The terms note is read fresh for every take.
+When dictation uses browser speech, the composer offers a free Gemini key
+for better results. Choose **Don’t show again** to dismiss the offer across
+devices. The key guide stays in Dictation preferences.
 
-### Install from a link
 
-In Settings › Plugins, with its link:
+Settings › Plugins › Dictation keeps your mode in this browser. Record first
+also shows Polish, the longest recording (1 to 15 minutes, 5 by default),
+microphone selection, and Names and terms. Your device keeps its recording
+choices when you switch modes or turn the plugin off. Record first reads the
+terms note fresh for every take.
 
-```
-https://github.com/michaelhejazi/loam-dictation/tree/v1.2.1
-```
+### Install from the Market
+
+Open Settings › Market and search for **Dictation**. The listing links to the maker’s repository and shows the exact version available.
 
 ### For builders
 
@@ -92,6 +96,6 @@ page holds none. Needs Loam 0.2.3 or later. Loam's own repository runs this
 plugin's tests against its copy in `plugins/_listed/dictation/`. The pictures
 are from Loam's demo world (`app/tools/capture-plugin-shots.mjs`).
 
-## Made by
+## License
 
-Michael Hejazi. Under the AGPL-3.0 ([LICENSE](LICENSE)), as Loam is.
+Under the AGPL-3.0 ([LICENSE](LICENSE)), as Loam is.

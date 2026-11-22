@@ -12,7 +12,7 @@
 import http from 'node:http'
 import { sendJson, readRaw } from './http.js'
 import { TRANSCRIBE_MAX_BYTES, tooBig } from './transcribe.js'
-import { readTerms } from './terms.js'
+import { readTerms, termsVaultPath } from './terms.js'
 
 // What a multipart take carries beyond its audio: the terms, a thousand of
 // at most eighty characters, as JSON, with the envelope's own lines.
@@ -52,7 +52,7 @@ export function createDictationServer({ config, transcriber, log = { info() {}, 
     if (rest === '/transcribe' && req.method === 'POST') return await transcribe(req, res)
     if (rest === '/terms' && req.method === 'GET') {
       const note = await readTerms(config.terms)
-      if (!note) return sendJson(res, 404, { error: 'There is no dictation terms note on this box.' })
+      if (!note) return sendJson(res, 404, { error: 'There is no dictation terms note on this box.', path: termsVaultPath(config.terms) })
       return sendJson(res, 200, note)
     }
     return sendJson(res, 404, { error: 'Dictation has no such route.' })

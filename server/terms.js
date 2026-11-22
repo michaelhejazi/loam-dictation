@@ -10,6 +10,13 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 
+export function termsVaultPath({ file, vault }) {
+  if (!file || !vault) return null
+  const rel = path.relative(vault, file)
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null
+  return rel.split(path.sep).join('/')
+}
+
 export async function readTerms({ file, vault }) {
   if (!file) return null
   let text, stat
@@ -20,12 +27,12 @@ export async function readTerms({ file, vault }) {
     throw err
   }
   const modified = new Date(Math.floor(stat.mtimeMs / 1000) * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
-  const rel = vault ? path.relative(vault, file) : null
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return { path: file, obsidian_url: null, modified, text }
+  const rel = termsVaultPath({ file, vault })
+  if (!rel) return { path: file, obsidian_url: null, modified, text }
   const target = rel.endsWith('.md') ? rel.slice(0, -3) : rel
   return {
-    path: rel.split(path.sep).join('/'),
-    obsidian_url: `obsidian://open?vault=${encodeURIComponent(path.basename(vault))}&file=${encodeURIComponent(target.split(path.sep).join('/'))}`,
+    path: rel,
+    obsidian_url: `obsidian://open?vault=${encodeURIComponent(path.basename(vault))}&file=${encodeURIComponent(target)}`,
     modified,
     text,
   }
